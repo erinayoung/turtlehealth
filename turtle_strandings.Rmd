@@ -20,7 +20,7 @@ library(magrittr)
 library(skimr)
 library(leaflet)
 library(mapview)
-library(ckanr)
+# library(ckanr)
 ```
 
 
