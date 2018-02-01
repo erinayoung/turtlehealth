@@ -1,0 +1,132 @@
+---
+title: "Turtle Strandings"
+author: "Florian Mayer (DBCA) and Erina Young (Murdoch)"
+date: "`r Sys.time()`"
+always_allow_html: yes
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Hmisc)
+library(tidyverse)
+library(lubridate)
+library(magrittr)
+library(skimr)
+library(leaflet)
+library(mapview)
+library(ckanr)
+```
+
+
+## Load data
+Data are retrieved from [WAStD](https://strandings.dpaw.wa.gov.au/) and parsed
+using the R package [wastdr](https://parksandwildlife.github.io/wastdr/).
+
+```{r load_data, echo=T}
+if (file.exists("~/ts_records.Rda")){
+    load("~/ts_records.Rda")
+} else {
+    query <- list(taxon='Cheloniidae', encounter_type='stranding', format='json')
+    ts_records <- wastdr::get_wastd("animal-encounters", query=query)
+    save(ts_records, file = "~/ts_records.Rda")
+    load("~/ts_records.Rda")
+    # listviewer::jsonedit(utils::head(ts_records$features))
+}
+strandings <- wastdr::parse_animal_encounters(ts_records)
+save(strandings, file = "~/strandings.Rda")
+```
+
+
+```{r filter_data}
+species_colours <- tibble::tibble(
+    species = c(
+    "cheloniidae-fam",
+    "chelonia-mydas",
+    "eretmochelys-imbricata",
+    "natator-depressus",
+    "corolla-corolla",
+    "lepidochelys-olivacea",
+    "caretta-caretta"    
+    ),
+    species_colours = c(
+    "gray",
+    "green",
+    "darkblue",
+    "beige",
+    "pink",
+    "darkgreen",
+    "orange"
+    )
+)
+
+
+add_lookups <- . %>% left_join(species_colours, by="species")
+
+filter_2016 <- . %>% dplyr::filter(date > dmy("31/12/2015"), date < dmy("01/01/2017"))
+filter_2017 <- . %>% dplyr::filter(date > dmy("31/12/2016"), date < dmy("01/01/2018"))
+filter_2018 <- . %>% dplyr::filter(date > dmy("31/12/2017"), date < dmy("01/01/2019"))
+
+filter_broome <- . %>% dplyr::filter(area_name=="Cable Beach Broome")
+filter_eighty_mile_beach <- . %>% dplyr::filter(area_name=="Eighty Mile Beach Caravan Park")
+filter_anna_plains <- . %>% dplyr::filter(area_name=="Anna Plains")
+filter_port_hedland <- . %>% dplyr::filter(site_name=="Port Hedland Turtle Nesting Beaches")
+filter_west_pilbara <- . %>% dplyr::filter(area_name=="West Pilbara Turtle Program beaches Wickam")
+filter_delambre <- . %>% dplyr::filter(area_name=="Delambre Island")
+filter_rosemary <- . %>% dplyr::filter(area_name=="Rosemary Island")
+filter_thevenard <- . %>% dplyr::filter(area_name=="Thevenard Island")
+```
+
+## Map data
+
+```{r, eval=T}
+strandings_map <- function(data) {
+    l <- leaflet(width=800, height=600) %>% 
+        addProviderTiles("Esri.WorldImagery", group = "Aerial") %>%
+        addProviderTiles("OpenStreetMap.Mapnik", group = "Place names") %>%
+        clearBounds()
+
+    data.df <-  data %>% split(data$species)
+    
+    names(data.df) %>%
+        purrr::walk( function(df) {
+            l <<- l %>%
+                addAwesomeMarkers(
+                    data = data.df[[df]],
+                    lng = ~longitude, lat=~latitude,
+                    icon = leaflet::makeAwesomeIcon(
+                        # text = ~species,
+                        markerColor = ~species_colours),
+                    label=~paste(date, health, species),
+                    popup=~paste(date, sex, health, species, name),
+                    group = df
+                )
+        })
+    
+    l %>%
+        addLayersControl(
+            baseGroups = c("Aerial", "Place names"),
+            overlayGroups = names(data.df),
+            options = layersControlOptions(collapsed = FALSE)
+        )
+}
+```
+
+# Maps
+
+## Strandings 2016
+
+```{r map_strandings_2016, fig.height=5, fig.width=7}
+strandings %>% add_lookups %>% filter_2016 %>% strandings_map %T>% mapshot(., file = "strandings_2016.png")
+```
+
+## Strandings 2017
+
+```{r map_strandings_2017, fig.height=5, fig.width=7}
+strandings %>% add_lookups %>% filter_2017 %>% strandings_map %T>% mapshot(., file = "strandings_2017.png")
+```
