@@ -23,10 +23,17 @@ library(mapview)
 # library(ckanr)
 ```
 
+# Mapping data in QGIS
+Open a browser, login to a DBCA site so that your browser session is authenticated.
+Then save [this URL](https://strandings.dpaw.wa.gov.au/api/1/animal-encounters/?encounter_type=stranding&taxon=Cheloniidae&format=json)
+as e.g. `strandings.geojson` and open it in Quantum GIS.
 
-## Load data
+# Load data
 Data are retrieved from [WAStD](https://strandings.dpaw.wa.gov.au/) and parsed
 using the R package [wastdr](https://parksandwildlife.github.io/wastdr/).
+
+Consult the excellent [RStudio cheatsheets](https://www.rstudio.com/resources/cheatsheets/) 
+son how to use RStudio Desktop and the R packages we use here.
 
 ```{r load_data, echo=T}
 if (file.exists("~/ts_records.Rda")){
@@ -42,8 +49,11 @@ strandings <- wastdr::parse_animal_encounters(ts_records)
 save(strandings, file = "~/strandings.Rda")
 ```
 
+# Helpers
+A few helper functions are defined, but hidden. 
+Set `echo=T` in the following chunk to show.
 
-```{r filter_data}
+```{r filter_data, echo=F}
 species_colours <- tibble::tibble(
     species = c(
     "cheloniidae-fam",
@@ -68,6 +78,7 @@ species_colours <- tibble::tibble(
 
 add_lookups <- . %>% left_join(species_colours, by="species")
 
+filter_2016ff <- . %>% dplyr::filter(date > dmy("31/12/2015"))
 filter_2016 <- . %>% dplyr::filter(date > dmy("31/12/2015"), date < dmy("01/01/2017"))
 filter_2017 <- . %>% dplyr::filter(date > dmy("31/12/2016"), date < dmy("01/01/2018"))
 filter_2018 <- . %>% dplyr::filter(date > dmy("31/12/2017"), date < dmy("01/01/2019"))
@@ -80,11 +91,7 @@ filter_west_pilbara <- . %>% dplyr::filter(area_name=="West Pilbara Turtle Progr
 filter_delambre <- . %>% dplyr::filter(area_name=="Delambre Island")
 filter_rosemary <- . %>% dplyr::filter(area_name=="Rosemary Island")
 filter_thevenard <- . %>% dplyr::filter(area_name=="Thevenard Island")
-```
 
-## Map data
-
-```{r, eval=T}
 strandings_map <- function(data) {
     l <- leaflet(width=800, height=600) %>% 
         addProviderTiles("Esri.WorldImagery", group = "Aerial") %>%
@@ -129,4 +136,16 @@ strandings %>% add_lookups %>% filter_2016 %>% strandings_map %T>% mapshot(., fi
 
 ```{r map_strandings_2017, fig.height=5, fig.width=7}
 strandings %>% add_lookups %>% filter_2017 %>% strandings_map %T>% mapshot(., file = "strandings_2017.png")
+```
+
+# Inspect data
+
+```{r}
+strandings %>% filter_2016ff %>% skim
+strandings %>% filter_2016ff %>% select(-obs) %>% DT::datatable()
+```
+
+# Export
+```{r save_csv}
+strandings %>% filter_2016ff %>% select(-obs) %>% write_delim("strandings.csv", delim = ",")
 ```
