@@ -39,13 +39,20 @@ son how to use RStudio Desktop and the R packages we use here.
 if (file.exists("~/ts_records.Rda")){
     load("~/ts_records.Rda")
 } else {
-    query <- list(taxon='Cheloniidae', encounter_type='stranding', format='json')
-    ts_records <- wastdr::get_wastd("animal-encounters", query=query)
+    query_dead <- list(taxon='Cheloniidae', encounter_type='stranding', format='json')
+    query_inj <- list(taxon='Cheloniidae', health='alive-injured', format='json')
+    ts_records <- wastdr::get_wastd("animal-encounters", query=query_dead)
+    inj_records <- wastdr::get_wastd("animal-encounters", query=query_inj)
     save(ts_records, file = "~/ts_records.Rda")
+    save(inj_records, file = "~/inj_records.Rda")
+    
     load("~/ts_records.Rda")
+    load("~/inj_records.Rda")
     # listviewer::jsonedit(utils::head(ts_records$features))
 }
-strandings <- wastdr::parse_animal_encounters(ts_records)
+dead <- wastdr::parse_animal_encounters(ts_records)
+injured <- wastdr::parse_animal_encounters(inj_records)
+strandings <- rbind(dead, injured)
 save(strandings, file = "~/strandings.Rda")
 ```
 
