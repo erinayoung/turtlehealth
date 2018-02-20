@@ -14,13 +14,16 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(Hmisc)
+require(lubridate)
 library(tidyverse)
-library(lubridate)
 library(magrittr)
 library(skimr)
 library(leaflet)
 library(mapview)
 # library(ckanr)
+# Install a fresh version of wastdr every now and then:
+devtools::install_github("dbca-wa/wastdr")
+library(wastdr)
 ```
 
 # Mapping data in QGIS
@@ -30,7 +33,7 @@ as e.g. `strandings.geojson` and open it in Quantum GIS.
 
 # Load data
 Data are retrieved from [WAStD](https://strandings.dpaw.wa.gov.au/) and parsed
-using the R package [wastdr](https://parksandwildlife.github.io/wastdr/).
+using the R package [wastdr](https://dbca-wa.github.io/wastdr/).
 
 Consult the excellent [RStudio cheatsheets](https://www.rstudio.com/resources/cheatsheets/) 
 son how to use RStudio Desktop and the R packages we use here.
@@ -85,10 +88,13 @@ species_colours <- tibble::tibble(
 
 add_lookups <- . %>% left_join(species_colours, by="species")
 
-filter_2016ff <- . %>% dplyr::filter(date > dmy("31/12/2015"))
-filter_2016 <- . %>% dplyr::filter(date > dmy("31/12/2015"), date < dmy("01/01/2017"))
-filter_2017 <- . %>% dplyr::filter(date > dmy("31/12/2016"), date < dmy("01/01/2018"))
-filter_2018 <- . %>% dplyr::filter(date > dmy("31/12/2017"), date < dmy("01/01/2019"))
+filter_2016ff <- . %>% dplyr::filter(date > lubridate::ymd("2015/12/31"))
+filter_2016 <- . %>% 
+  dplyr::filter(date > lubridate::ymd("2015/12/31"), date < lubridate::ymd("2017/01/01"))
+filter_2017 <- . %>% 
+  dplyr::filter(date > lubridate::ymd("2016/12/31"), date < lubridate::ymd("2018/01/01"))
+filter_2018 <- . %>% 
+  dplyr::filter(date > lubridate::ymd("2017/12/31"), date < lubridate::ymd("2019/01/01"))
 
 filter_broome <- . %>% dplyr::filter(area_name=="Cable Beach Broome")
 filter_eighty_mile_beach <- . %>% dplyr::filter(area_name=="Eighty Mile Beach Caravan Park")
@@ -117,7 +123,7 @@ strandings_map <- function(data) {
                         # text = ~species,
                         markerColor = ~species_colours),
                     label=~paste(date, health, species),
-                    popup=~paste(date, sex, health, species, name),
+                    popup=~paste(date, health, sex, maturity, species, name),
                     group = df
                 )
         })
@@ -136,13 +142,21 @@ strandings_map <- function(data) {
 ## Strandings 2016
 
 ```{r map_strandings_2016, fig.height=5, fig.width=7}
-strandings %>% add_lookups %>% filter_2016 %>% strandings_map %T>% mapshot(., file = "strandings_2016.png")
+strandings %>% 
+  add_lookups %>% 
+  filter_2016 %>% 
+  strandings_map %T>% 
+  mapshot(., file = "strandings_2016.png")
 ```
 
 ## Strandings 2017
 
 ```{r map_strandings_2017, fig.height=5, fig.width=7}
-strandings %>% add_lookups %>% filter_2017 %>% strandings_map %T>% mapshot(., file = "strandings_2017.png")
+strandings %>% 
+  add_lookups %>% 
+  filter_2017 %>% 
+  strandings_map %T>% 
+  mapshot(., file = "strandings_2017.png")
 ```
 
 # Inspect data
